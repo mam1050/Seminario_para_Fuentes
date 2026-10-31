@@ -16,7 +16,78 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
-summary(cars)
+library(tidyverse)
+library(readxl)
+library(pdftools)
+library(knitr)
+library(corrplot)
+library(scales)
+library(sf)
+library(dplyr)
+library(countrycode)
+```
+
+
+```{r cars}
+#Cargar datos sobre las bandas de metal
+
+# La ruta
+ruta_metal<- "INPUT/Metal/metal_bands.csv"
+
+#Si no existe, avisar
+if (!file.exists(ruta_metal)){
+  stop("No se ha encontrado el documento. Comprueba la ruta.")
+}
+
+# Leerla y cambiar los espacion o comillas po Na pa que sea mas facil de manipular
+metal_bandas <- read.csv(
+  ruta_metal, na = c("","NA")
+)
+
+# Echarle un vistazo rápido
+summary(metal_bandas)
+colnames(metal_bandas)
+
+# Buscar lo de las abreviaciones, se supone que es mas facil de esta manera luego ligar las demas (o algo asi)
+paises <- metal_bandas %>%
+  filter(!is.na(Country), !Country %in% c("International", "Unknown")) %>%
+  mutate(
+    iso_pais = countrycode(
+      Country, origin = "country.name", destination = "iso3c"
+    )
+  ) %>%
+  
+# Jutar los paises que SI existen y no sean NA
+filter(!is.na(iso_pais)) %>%
+group_by(iso_pais) %>%
+summarise(n_bandas = n(), .groups = "drop")
+
+# Vistazo rápido
+view(paises)
+```
+```{r}
+#Columna que sirven
+col_usar <- c("Band.ID", "Name", "Country", "Genre", "Status")
+
+if (!all(col_usar %in% names(metal_bandas))){
+  stop( "No están todas las columnas"
+  )
+}
+
+#Tabla nueva (mantener la original porsi)
+metal <- metal_bandas%>%
+  transmute(
+    id_banda = as.character(Band.ID),
+    nombre = trimws(as.character(Name)),
+    pais = trimws(as.character(Country)),
+    genero = trimws(as.character(Genre)),
+    estado = trimws(as.character(Status)) 
+      ) %>%
+    mutate(
+      pais = na_if(pais,""), genero = na_if(genero,""), estado = na_if(estado,"")
+    )
+#Datos limpios
+view(metal)
 ```
 
 ## Including Plots
