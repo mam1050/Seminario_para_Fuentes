@@ -15,7 +15,8 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
+```{r packages}
+install.packages("stingi")
 library(tidyverse)
 library(readxl)
 library(pdftools)
@@ -28,7 +29,7 @@ library(countrycode)
 ```
 
 
-```{r cars}
+```{r metal_datos}
 #Cargar datos sobre las bandas de metal
 
 # La ruta
@@ -43,6 +44,8 @@ if (!file.exists(ruta_metal)){
 metal_bandas <- read.csv(
   ruta_metal, na = c("","NA")
 )
+
+view(metal_bandas)
 
 # Echarle un vistazo rápido
 summary(metal_bandas)
@@ -65,7 +68,7 @@ summarise(n_bandas = n(), .groups = "drop")
 # Vistazo rápido
 view(paises)
 ```
-```{r}
+```{r crear la tabla con clumnas útiles}
 #Columna que sirven
 col_usar <- c("Band.ID", "Name", "Country", "Genre", "Status")
 
@@ -89,6 +92,62 @@ metal <- metal_bandas%>%
 #Datos limpios
 view(metal)
 ```
+
+```{r inspeccionar los internacionales}
+#Después de revisar el código paises (otra vez) me doy cuenta que los 1050 aprox de internacionales es porque en el primer dataset pone internacionales, no porque lo haya leido mal, entonces ps habrá que 1- identificarlos, 2- quitarlos:#
+internacionales <- metal %>%
+  filter(pais == "International")
+
+# Cuantos y como se encuentran actualmente son inter
+internacionales %>%
+  count(estado, sort = TRUE) %>%
+  knitr::kable(
+    caption = "Internacionales:"
+  )
+
+internacionales %>%
+  select(id_banda, nombre, pais, genero, estado) %>%
+  knitr:: kable(
+    caption= "Internacionales son:"
+  )
+```
+
+
+```{r pais = cuantas bandas funcionan}
+# De donde son cada banda que estan activas o que están en pleno descanso, pero no las que se han separado
+
+bandas_pais <- metal %>%
+  filter(!is.na(pais),!pais %in% c("International", "Unknown"), estado %in% c("Active","On hold")) %>%
+  count(pais, name = "bandas_func", sort = TRUE)
+
+bandas_pais %>%
+  knitr::kable(
+    caption = "los paises con mas bandas"
+  )
+```
+
+```{r paises con mas bandas pero en gráfico, no muy util porque falta mirar cuanta gente vive en ese pais}
+bandas_pais %>%
+  mutate(pais = forcats::fct_reorder(pais, bandas_func)) %>%
+  ggplot(aes(x=pais, y = bandas_func)) + geom_col() + coord_flip()
+```
+```{r añadir población, porque sino el gráfico anterior no sirve para mucho}
+# La ruta
+ruta_gente<- "INPUT/Gente/Gente.xls"
+
+#Si no existe, avisar
+if (!file.exists(ruta_gente)){
+  stop("No se ha encontrado el documento. Comprueba la ruta.")
+}
+
+# Leerla y quitar las 3 primeras lineas que no hacen la gran cosa
+gente_PIB <- readxl :: read_excel(
+  ruta_gente, skip = 3
+)
+
+view(gente_PIB)
+```
+
 
 ## Including Plots
 
