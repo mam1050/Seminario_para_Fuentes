@@ -16,7 +16,7 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r packages}
-install.packages("stingi")
+install.packages("stringi")
 library(tidyverse)
 library(readxl)
 library(pdftools)
@@ -146,6 +146,37 @@ gente_PIB <- readxl :: read_excel(
 )
 
 view(gente_PIB)
+```
+
+```{r Añadir PIB, pa saber el dinero}
+# La ruta
+ruta_pib<- "INPUT/PIB_per_capita/PIB.xls"
+
+#Si no existe, avisar
+if (!file.exists(ruta_gente)){
+  stop("No se ha encontrado el documento. Comprueba la ruta.")
+}
+
+# Leerla y quitar las 3 primeras lineas que no hacen la gran cosa
+PIB_capita <- readxl :: read_excel(
+  ruta_pib, skip = 3
+)
+
+view(PIB_capita)
+```
+
+```{r preparar pregunta 1 (mirar que pais tiene mas grupos por cápita y a cuales les va mejor economicamente)}
+indicador <- function(datos){
+  datos %>%
+    transmute(pais = 'pais', iso3c = 'código', año = as.integer(año), valor = as.numeric (valor)) %>%
+    filter(!is.na(valor)) %>%
+    group_by(iso3c, pais) %>%
+    slice_max(año, n=1) %>%
+    ungroup()
+}
+
+# Probarlo
+poblacion <- indicador(gente_PIB) 
 ```
 
 
