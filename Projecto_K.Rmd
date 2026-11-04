@@ -118,7 +118,9 @@ internacionales %>%
 
 bandas_pais <- metal %>%
   filter(!is.na(pais),!pais %in% c("International", "Unknown"), estado %in% c("Active","On hold")) %>%
-  count(pais, name = "bandas_func", sort = TRUE)
+  mutate(iso3c = countrycode(pais, origin = "country.name", destination = "iso3c")) %>%
+  filter(!is.na(iso3c)) %>%
+  count(pais, iso3c, name = "bandas_func", sort = TRUE)
 
 bandas_pais %>%
   knitr::kable(
@@ -153,7 +155,7 @@ view(gente_PIB)
 ruta_pib<- "INPUT/PIB_per_capita/PIB.xls"
 
 #Si no existe, avisar
-if (!file.exists(ruta_gente)){
+if (!file.exists(ruta_pib)){
   stop("No se ha encontrado el documento. Comprueba la ruta.")
 }
 
@@ -168,15 +170,46 @@ view(PIB_capita)
 ```{r preparar pregunta 1 (mirar que pais tiene mas grupos por cápita y a cuales les va mejor economicamente)}
 indicador <- function(datos){
   datos %>%
-    transmute(pais = 'pais', iso3c = 'código', año = as.integer(año), valor = as.numeric (valor)) %>%
-    filter(!is.na(valor)) %>%
-    group_by(iso3c, pais) %>%
-    slice_max(año, n=1) %>%
-    ungroup()
-}
+    transmute(pais = `Country Name`, iso3c = `Country Code`,valor = as.numeric(`2024`)) %>%
+    filter(!is.na(valor)) 
+ }
 
 # Probarlo
-poblacion <- indicador(gente_PIB) 
+poblacion2024 <- indicador(gente_PIB) 
+view(poblacion2024)
+PIB2024 <- indicador(PIB_capita)
+view(PIB2024)
+```
+
+```{r empezar a unor tablas (haber que tal), usar inner_join}
+indicadores_union <- inner_join(
+  poblacion2024 %>%
+    rename(poblacion= valor),
+  PIB2024 %>%
+    rename(pib = valor),
+  by = c("pais","iso3c")
+)
+view(indicadores_union)
+
+
+```
+
+```{r unir}
+analisis1 <- bandas_pais %>%
+  left_join(indicadores_union %>%
+              select(-pais),
+            by= "iso3c"
+  ) %>%
+  mutate(bandas_100milhab = (bandas_func/poblacion)*100000)
+
+view(analisis1)
+
+ranking <- analisis1 %>%
+  filter(!is.na(bandas_100milhab)) %>%
+  arrange(desc(bandas_100milhab)) %>%
+  select(pais, bandas_func, poblacion, bandas_100milhab)
+
+view(ranking)
 ```
 
 
