@@ -17,6 +17,8 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r packages}
 install.packages("stringi")
+install.packages("rnaturalearth")
+install.packages("rnaturalearthdata")
 library(tidyverse)
 library(readxl)
 library(pdftools)
@@ -26,10 +28,12 @@ library(scales)
 library(sf)
 library(dplyr)
 library(countrycode)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(ggplot2)
 ```
 
-
-```{r metal_datos}
+```{r metal_datos --> ¿Existe alguna relación entre la presencia de bandas de metal por habitante y la felicidad o la salud de la población?}
 #Cargar datos sobre las bandas de metal
 
 # La ruta
@@ -68,6 +72,7 @@ summarise(n_bandas = n(), .groups = "drop")
 # Vistazo rápido
 view(paises)
 ```
+
 ```{r crear la tabla con clumnas útiles}
 #Columna que sirven
 col_usar <- c("Band.ID", "Name", "Country", "Genre", "Status")
@@ -112,7 +117,6 @@ internacionales %>%
   )
 ```
 
-
 ```{r pais = cuantas bandas funcionan}
 # De donde son cada banda que estan activas o que están en pleno descanso, pero no las que se han separado
 
@@ -128,11 +132,6 @@ bandas_pais %>%
   )
 ```
 
-```{r paises con mas bandas pero en gráfico, no muy util porque falta mirar cuanta gente vive en ese pais}
-bandas_pais %>%
-  mutate(pais = forcats::fct_reorder(pais, bandas_func)) %>%
-  ggplot(aes(x=pais, y = bandas_func)) + geom_col() + coord_flip()
-```
 ```{r añadir población, porque sino el gráfico anterior no sirve para mucho}
 # La ruta
 ruta_gente<- "INPUT/Gente/Gente.xls"
@@ -150,75 +149,144 @@ gente_PIB <- readxl :: read_excel(
 view(gente_PIB)
 ```
 
-```{r Añadir PIB, pa saber el dinero}
-# La ruta
-ruta_pib<- "INPUT/PIB_per_capita/PIB.xls"
+```{r preparar pregunta 1}
+poblacion2024 <- gente_PIB %>%
+  transmute(
+    pais = `Country Name`,
+    iso3c = `Country Code`,
+    poblacion = as.numeric(`2024`)
+  ) %>%
+  filter(!is.na(poblacion))
 
-#Si no existe, avisar
-if (!file.exists(ruta_pib)){
-  stop("No se ha encontrado el documento. Comprueba la ruta.")
-}
-
-# Leerla y quitar las 3 primeras lineas que no hacen la gran cosa
-PIB_capita <- readxl :: read_excel(
-  ruta_pib, skip = 3
-)
-
-view(PIB_capita)
-```
-
-```{r preparar pregunta 1 (mirar que pais tiene mas grupos por cápita y a cuales les va mejor economicamente)}
-indicador <- function(datos){
-  datos %>%
-    transmute(pais = `Country Name`, iso3c = `Country Code`,valor = as.numeric(`2024`)) %>%
-    filter(!is.na(valor)) 
- }
-
-# Probarlo
-poblacion2024 <- indicador(gente_PIB) 
-view(poblacion2024)
-PIB2024 <- indicador(PIB_capita)
-view(PIB2024)
-```
-
-```{r empezar a unor tablas (haber que tal), usar inner_join}
-indicadores_union <- inner_join(
-  poblacion2024 %>%
-    rename(poblacion= valor),
-  PIB2024 %>%
-    rename(pib = valor),
-  by = c("pais","iso3c")
-)
-view(indicadores_union)
-
-
+View(poblacion2024)
 ```
 
 ```{r unir}
 analisis1 <- bandas_pais %>%
-  left_join(indicadores_union %>%
-              select(-pais),
-            by= "iso3c"
+  left_join(
+    poblacion2024 %>% select(-pais),
+    by = "iso3c"
   ) %>%
-  mutate(bandas_100milhab = (bandas_func/poblacion)*100000)
+  mutate(
+    bandas_100milhab = (bandas_func / poblacion) * 100000
+  )
 
-view(analisis1)
 
-ranking <- analisis1 %>%
-  filter(!is.na(bandas_100milhab)) %>%
-  arrange(desc(bandas_100milhab)) %>%
-  select(pais, bandas_func, poblacion, bandas_100milhab)
-
-view(ranking)
 ```
 
+```{r mapa 1}
+library(ggplot2)
 
-## Including Plots
+mapa_mun <- ne_countries( scale = "medium", returnclass = "sf")
 
-You can also embed plots, for example:
+mapa_met <- mapa_mun %>%
+  left_join(analisis1, by = c("iso_a3" = "iso3c"))
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+ggplot(mapa_met)+ 
+  geom_sf(aes(fill = bandas_100milhab), color = "white", linewidth = 0.2) + 
+  scale_fill_viridis_c( option = "magma", direction = -1, na.value = "grey90", name = "Bandas por 100000 habitantes") +
+  labs(
+    title = "Distribución de bandas metal",
+    subtitle = "Bandas activas o en pausa",
+    caption = "Fuentes: Metal Archives y Banco Mundial"
+  ) +
+  theme_void()
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Fin de la pregunta 1
+
+```{r}
+ruta_fel<- "INPUT/Felicidad/Felicidad_datos.xls"
+
+#Si no existe, avisar
+fel_datos <- readxl :: read_excel(
+  ruta_fel
+)
+
+view(fel_datos)
+
+fel_iso <- fel_datos %>%
+  mutate(
+    iso3c = countrycode(`Country name`, origin = "country.name", destination = "iso3c"))
+
+view(fel_iso)
+
+```
+
+```{r}
+ruta_hale <- "INPUT/HALE/HALE.csv"
+
+if (!file.exists(ruta_hale)) {
+  stop("No se ha encontrado el archivo HALE. Comprueba la ruta.")
+}
+
+hale_datos <- read.csv(
+  ruta_hale,
+  na.strings = c("", "NA"),
+  check.names = FALSE
+)
+
+view(hale_datos)
+
+```
+
+```{r}
+felicidad <- fel_iso %>%
+  transmute(
+    iso3c = iso3c,
+    pais = `Country name`,
+    felicidad = as.numeric(`Ladder score`)
+  ) %>%
+  filter(!is.na(iso3c), !is.na(felicidad))
+```
+
+```{r}
+hale_paises <- hale_datos %>%
+  filter(DIM_SEX == "TOTAL", as.numeric(as.character(DIM_TIME)) >= 2000,
+         as.numeric(as.character(DIM_TIME)) <= 2021) %>%
+  transmute(pais = GEO_NAME_SHORT, year= as.numeric(as.character(DIM_TIME)),
+            hale = as.numeric(AMOUNT_N)) %>%
+  mutate(
+    iso3c = countrycode(pais, origin = "country.name", destination = "iso3c")
+  ) %>%
+  filter(!is.na(iso3c), !is.na(hale))
+
+
+```
+
+```{r}
+hale_final <- hale_paises %>%
+  group_by(iso3c) %>%
+  arrange(desc(year), .by_group = TRUE) %>%
+  slice(1) %>%
+  ungroup() %>%
+  arrange(pais)
+
+summary(hale_final)
+```
+
+```{r}
+analisis2 <- felicidad %>%
+  inner_join(hale_final %>%
+               select(iso3c, hale, year), by = "iso3c")
+
+summary(analisis2)
+
+paises_destacados <- analisis2 %>%
+  filter(hale >= median(hale, na.rm = TRUE), felicidad >= median(felicidad, na.rm = TRUE)) %>%
+  arrange(desc(hale), desc(felicidad))
+```
+
+```{r}
+ggplot(analisis2, aes(x = hale, y = felicidad)) +
+  geom_point(size = 2, alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  geom_text( data = paises_destacados,aes(label = pais),size = 3,vjust = -0.7, check_overlap = TRUE) +
+  labs(
+    title = "Esperanza de vida saludable y felicidad",
+    x = "Esperanza de vida saludable",
+    y = "Felicidad",
+  ) +
+  theme_minimal()
+```
