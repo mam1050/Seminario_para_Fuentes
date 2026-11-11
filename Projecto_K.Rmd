@@ -9,11 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# MUSICA METAL = SALUD y FELICIDAD?
 
 ```{r packages}
 install.packages("stringi")
@@ -33,7 +29,7 @@ library(rnaturalearthdata)
 library(ggplot2)
 ```
 
-```{r metal_datos --> ¿Existe alguna relación entre la presencia de bandas de metal por habitante y la felicidad o la salud de la población?}
+```{r metal_datos}
 #Cargar datos sobre las bandas de metal
 
 # La ruta
@@ -164,34 +160,66 @@ View(poblacion2024)
 ```{r unir}
 analisis1 <- bandas_pais %>%
   left_join(
-    poblacion2024 %>% select(-pais),
-    by = "iso3c"
+    poblacion2024 %>% 
+      select(iso3c, poblacion),
+      by = "iso3c"
   ) %>%
   mutate(
     bandas_100milhab = (bandas_func / poblacion) * 100000
+  ) %>%
+  inner_join(
+    felicidad %>%
+      select(iso3c, felicidad),
+      by = "iso3c"
   )
 
-
+paises_destacados_1 <- analisis1 %>%
+  filter(
+    bandas_100milhab >= median(bandas_100milhab, na.rm = TRUE),
+    felicidad >= median(felicidad, na.rm = TRUE)
+  ) %>%
+  arrange(desc(bandas_100milhab), desc(felicidad))
 ```
 
 ```{r mapa 1}
-library(ggplot2)
-
 mapa_mun <- ne_countries( scale = "medium", returnclass = "sf")
 
 mapa_met <- mapa_mun %>%
   left_join(analisis1, by = c("iso_a3" = "iso3c"))
 
 ggplot(mapa_met)+ 
-  geom_sf(aes(fill = bandas_100milhab), color = "white", linewidth = 0.2) + 
+  geom_sf(aes(fill = felicidad), color = "white", linewidth = 0.2) + 
   scale_fill_viridis_c( option = "magma", direction = -1, na.value = "grey90", name = "Bandas por 100000 habitantes") +
   labs(
-    title = "Distribución de bandas metal",
-    subtitle = "Bandas activas o en pausa",
-    caption = "Fuentes: Metal Archives y Banco Mundial"
+    title = "Felicidad por países y presencia de bandas de metal",
+    subtitle = "Puntuación de felicidad según el país",
+    caption = "Fuentes: Metal Archives, World Happiness Report y Banco Mundial"
   ) +
   theme_void()
+```
 
+```{r}
+ggplot(analisis1,
+       aes(x = bandas_100milhab, y = felicidad)) +
+  geom_point(size = 2, alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  geom_text( data = paises_destacados_1,aes(label = pais),size = 3,vjust = -0.7, check_overlap = TRUE) +
+  labs(
+    title = "Bandas de metal y felicidad",
+    subtitle = "Relación entre bandas por habitante y felicidad",
+    x = "Bandas por cada 100.000 habitantes",
+    y = "Puntuación de felicidad"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+cor.test(
+  analisis1$bandas_100milhab,
+  analisis1$felicidad,
+  method = "spearman",
+  exact = FALSE
+)
 ```
 
 Fin de la pregunta 1
@@ -289,4 +317,77 @@ ggplot(analisis2, aes(x = hale, y = felicidad)) +
     y = "Felicidad",
   ) +
   theme_minimal()
+```
+
+```{r}
+cor.test(
+  analisis2$hale,
+  analisis2$felicidad,
+  method = "spearman",
+  exact = FALSE
+)
+```
+
+```{r }
+analisis3 <- bandas_pais %>%
+  inner_join(
+    poblacion2024 %>% select(iso3c, poblacion),
+    by = "iso3c"
+  ) %>%
+  mutate(
+    bandas_100milhab = (bandas_func / poblacion) * 100000
+  ) %>%
+  inner_join(
+    hale_final %>% select(iso3c, hale, year),
+    by = "iso3c"
+  )
+
+summary(analisis3)
+
+
+```
+
+```{r paises_destacados_salud}
+
+paises_destacados_3 <- analisis3 %>%
+  filter(
+    bandas_100milhab >= median(bandas_100milhab, na.rm = TRUE),
+    hale >= median(hale, na.rm = TRUE)
+  ) %>%
+  arrange(desc(bandas_100milhab), desc(hale))
+
+paises_destacados_3 %>%
+  select(pais, bandas_func, bandas_100milhab, hale, year) %>%
+  knitr::kable(
+    caption = "Países con mayor presencia de metal y esperanza de vida saludable"
+  )
+```
+
+```{r}
+ggplot(analisis3, aes(x = bandas_100milhab, y = hale)) +
+  geom_point(size = 2, alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  geom_text(
+    data = paises_destacados_3,
+    aes(label = pais),
+    size = 3,
+    vjust = -0.7,
+    check_overlap = TRUE
+  ) +
+  labs(
+    title = "Presencia de bandas de metal y salud de la población",
+    subtitle = "Relación entre bandas por habitante y esperanza de vida saludable",
+    x = "Bandas por cada 100.000 habitantes",
+    y = "Esperanza de vida saludable (años)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+cor.test(
+  analisis3$bandas_100milhab,
+  analisis3$hale,
+  method = "spearman",
+  exact = FALSE
+)
 ```
