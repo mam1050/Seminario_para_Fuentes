@@ -41,32 +41,14 @@ Los archivos que voy a importar son:
 # La ruta
 ruta_metal <- "INPUT/Metal/metal_bands.csv"
 
-# Si no existe, avisar
-if (!file.exists(ruta_metal)){
+if (!file.exists(ruta_metal)) {
   stop("No se ha encontrado el documento. Comprueba la ruta.")
 }
 
-# Leer los datos
 metal_bandas <- read.csv(
-  ruta_metal, na.strings = c("", "NA")
+  ruta_metal,
+  na.strings = c("", "NA")
 )
-
-View(metal_bandas)
-
-# Buscar las abreviaciones de los países
-paises <- metal_bandas %>%
-  filter(!is.na(Country), !Country %in% c("International", "Unknown")) %>%
-  mutate(
-    iso_pais = countrycode(
-      Country, origin = "country.name", destination = "iso3c"
-    )
-  ) %>%
-
-  # Juntar los países que sí existen y no sean NA
-  filter(!is.na(iso_pais)) %>%
-  group_by(iso_pais) %>%
-  summarise(n_bandas = n(), .groups = "drop")
-
 
 ```
 
@@ -82,17 +64,19 @@ if (!all(col_usar %in% names(metal_bandas))){
 }
 
 #Tabla nueva (mantener la original porsi)
-metal <- metal_bandas%>%
+metal <- metal_bandas %>%
   transmute(
     id_banda = as.character(Band.ID),
     nombre = trimws(as.character(Name)),
     pais = trimws(as.character(Country)),
     genero = trimws(as.character(Genre)),
-    estado = trimws(as.character(Status)) 
-      ) %>%
-    mutate(
-      pais = na_if(pais,""), genero = na_if(genero,""), estado = na_if(estado,"")
-    )
+    estado = trimws(as.character(Status))
+  ) %>%
+  mutate(
+    pais = na_if(pais, ""),
+    genero = na_if(genero, ""),
+    estado = na_if(estado, "")
+  )
 
 ```
 
@@ -102,17 +86,16 @@ Después de revisar el código paises hay 1050 aproximadamente de bandas interna
 internacionales <- metal %>%
   filter(pais == "International")
 
-# Cuantos y como se encuentran actualmente son inter
 internacionales %>%
   count(estado, sort = TRUE) %>%
   knitr::kable(
-    caption = "Internacionales:"
+    caption = "Bandas internacionales según su estado"
   )
 
 internacionales %>%
   select(id_banda, nombre, pais, genero, estado) %>%
-  knitr:: kable(
-    caption= "Internacionales son:"
+  knitr::kable(
+    caption = "Listado de bandas internacionales"
   )
 ```
 
@@ -151,7 +134,7 @@ gente_PIB <- readxl :: read_excel(
 view(gente_PIB)
 ```
 
-```{r preparar pregunta 1}
+```{r Preparación de datos: crear una columna para los códigos iso3c y quitar los NA}
 poblacion2024 <- gente_PIB %>%
   transmute(
     pais = `Country Name`,
@@ -181,6 +164,8 @@ fel_iso <- fel_datos %>%
 
 view(fel_iso)
 
+```
+```{r Preparación de datos: crear una columna para los códigos iso3c y quitar los NA}
 felicidad <- fel_iso %>%
   transmute(
     iso3c = iso3c,
@@ -190,6 +175,7 @@ felicidad <- fel_iso %>%
   filter(!is.na(iso3c), !is.na(felicidad))
 
 ```
+
 
 - Global Health Observatory (Organización Mundial de la Salud): se ha utilizado el indicador Healthy life expectancy (HALE), que estima el número de años que una persona puede esperar vivir en condiciones de plena salud. Para el análisis se han seleccionado los datos más recientes disponibles por país.
 
@@ -210,10 +196,10 @@ view(hale_datos)
 
 ```
 
-```{r}
+```{r Preparación de datos: crear una columna para los códigos iso3c, filtrar los datos por género y año y quitar los NA}
 hale_paises <- hale_datos %>%
   filter(DIM_SEX == "TOTAL", as.numeric(as.character(DIM_TIME)) >= 2000,
-         as.numeric(as.character(DIM_TIME)) <= 2021) %>%
+         as.numeric(as.character(DIM_TIME)) <= 2024) %>%
   transmute(pais = GEO_NAME_SHORT, year= as.numeric(as.character(DIM_TIME)),
             hale = as.numeric(AMOUNT_N)) %>%
   mutate(
@@ -224,7 +210,7 @@ hale_paises <- hale_datos %>%
 
 ```
 
-```{r}
+```{r Selecciona para cada país el último año disponible de esperanza de vida saludable y ordena los resultados alfabéticamente.}
 hale_final <- hale_paises %>%
   group_by(iso3c) %>%
   arrange(desc(year), .by_group = TRUE) %>%
@@ -245,15 +231,59 @@ Primer Objetivo: Relación entre la salud y la felicidad
 
 ```{r}
 analisis1 <- felicidad %>%
-  inner_join(hale_final %>%
-               select(iso3c, hale, year), by = "iso3c")
+  inner_join(
+    hale_final %>% select(iso3c, hale, year),
+    by = "iso3c"
+  )
 
-summary(analisis1)
-
+# Seleccionar los 5 países con mayor felicidad
 paises_destacados_1 <- analisis1 %>%
-  filter(hale >= median(hale, na.rm = TRUE), felicidad >= median(felicidad, na.rm = TRUE)) %>%
-  arrange(desc(hale), desc(felicidad))
+  slice_max(order_by = felicidad, n = 10, with_ties = FALSE) %>%
+  select(pais, felicidad, hale, year)
 ```
+
+
+```{r}
+# Obtener el mapa mundial
+mapa_mun <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Crear códigos ISO3 automáticamente para los países del mapa
+mapa_mun <- mapa_mun %>%
+  mutate(
+    codigo_iso = countrycode(
+      admin,
+      origin = "country.name",
+      destination = "iso3c",
+      warn = FALSE
+    )
+  )
+
+# Preparar los datos del análisis 1
+datos_mapa1 <- analisis1 %>%
+  select(iso3c, hale, felicidad)
+
+# Unir el mapa con los datos del análisis 1
+mapa_analisis1 <- mapa_mun %>%
+  left_join(datos_mapa1, by = c("codigo_iso" = "iso3c"))
+
+# Representar la esperanza de vida saludable
+ggplot(mapa_analisis1) +
+  geom_sf(aes(fill = hale), color = "white", linewidth = 0.1) +
+  scale_fill_viridis_c(
+    option = "magma",
+    direction = -1,
+    na.value = "grey90",
+    name = "Esperanza de vida saludable (años)"
+  ) +
+  labs(
+    title = "Esperanza de vida saludable por países",
+    subtitle = "Relación entre felicidad y esperanza de vida saludable",
+    caption = "Fuente: Organización Mundial de la Salud"
+  ) +
+  theme_void()
+```
+
+
 
 ```{r}
 ggplot(analisis1, aes(x = hale, y = felicidad)) +
@@ -268,57 +298,51 @@ ggplot(analisis1, aes(x = hale, y = felicidad)) +
   theme_minimal()
 ```
 
-```{r}
-cor.test(
-  analisis1$hale,
-  analisis1$felicidad,
-  method = "spearman",
-  exact = FALSE
-)
-```
-
 Segundo Objetivo: Metal y felicidad
 
-```{r unir}
-analisis2 <- bandas_pais %>%
-  left_join(
-    poblacion2024 %>% 
-      select(iso3c, poblacion),
-      by = "iso3c"
-  ) %>%
+
+
+
+```{r}
+# Obtener el mapa mundial
+mapa_mun <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Crear códigos ISO3 automáticamente para los países del mapa
+mapa_mun <- mapa_mun %>%
   mutate(
-    bandas_100milhab = (bandas_func / poblacion) * 100000
-  ) %>%
-  inner_join(
-    felicidad %>%
-      select(iso3c, felicidad),
-      by = "iso3c"
+    codigo_iso = countrycode(
+      admin,
+      origin = "country.name",
+      destination = "iso3c",
+      warn = FALSE
+    )
   )
 
-paises_destacados_2 <- analisis2 %>%
-  filter(
-    bandas_100milhab >= median(bandas_100milhab, na.rm = TRUE),
-    felicidad >= median(felicidad, na.rm = TRUE)
-  ) %>%
-  arrange(desc(bandas_100milhab), desc(felicidad))
-```
+# Preparar los datos del análisis 2
+datos_mapa2 <- analisis2 %>%
+  select(iso3c, bandas_100milhab, felicidad)
 
-```{r mapa 2}
-mapa_mun <- ne_countries( scale = "medium", returnclass = "sf")
+# Unir el mapa con los datos del análisis 2
+mapa_analisis2 <- mapa_mun %>%
+  left_join(datos_mapa2, by = c("codigo_iso" = "iso3c"))
 
-mapa_met <- mapa_mun %>%
-  left_join(analisis2, by = c("iso_a3" = "iso3c"))
-
-ggplot(mapa_met)+ 
-  geom_sf(aes(fill = felicidad), color = "white", linewidth = 0.2) + 
-  scale_fill_viridis_c( option = "magma", direction = -1, na.value = "grey90", name = "Bandas por 100000 habitantes") +
+# Representar el número de bandas de metal por cada 100.000 habitantes
+ggplot(mapa_analisis2) +
+  geom_sf(aes(fill = bandas_100milhab), color = "white", linewidth = 0.1) +
+  scale_fill_viridis_c(
+    option = "magma",
+    direction = -1,
+    na.value = "grey90",
+    name = "Bandas por 100.000 habitantes"
+  ) +
   labs(
-    title = "Felicidad por países y presencia de bandas de metal",
-    subtitle = "Puntuación de felicidad según el país",
-    caption = "Fuentes: Metal Archives, World Happiness Report y Banco Mundial"
+    title = "Distribución de bandas de metal por países",
+    subtitle = "Número de bandas por cada 100.000 habitantes",
+    caption = "Fuente: Metal Archives y Banco Mundial"
   ) +
   theme_void()
 ```
+
 
 ```{r}
 ggplot(analisis2,
@@ -335,51 +359,49 @@ ggplot(analisis2,
   theme_minimal()
 ```
 
-```{r}
-cor.test(
-  analisis2$bandas_100milhab,
-  analisis2$felicidad,
-  method = "spearman",
-  exact = FALSE
-)
-```
 
 Tercer Objetivo: Metal y salud
 
-```{r }
-analisis3 <- bandas_pais %>%
-  inner_join(
-    poblacion2024 %>% select(iso3c, poblacion),
-    by = "iso3c"
-  ) %>%
+```{r}
+# Obtener el mapa mundial
+mapa_mun <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Crear códigos ISO3 automáticamente para los países del mapa
+mapa_mun <- mapa_mun %>%
   mutate(
-    bandas_100milhab = (bandas_func / poblacion) * 100000
-  ) %>%
-  inner_join(
-    hale_final %>% select(iso3c, hale, year),
-    by = "iso3c"
+    codigo_iso = countrycode(
+      admin,
+      origin = "country.name",
+      destination = "iso3c",
+      warn = FALSE
+    )
   )
 
-summary(analisis3)
+# Preparar los datos del análisis 3
+datos_mapa3 <- analisis3 %>%
+  select(iso3c, bandas_100milhab, hale)
 
+# Unir el mapa con los datos del análisis 3
+mapa_analisis3 <- mapa_mun %>%
+  left_join(datos_mapa3, by = c("codigo_iso" = "iso3c"))
 
+# Representar el número de bandas de metal por cada 100.000 habitantes
+ggplot(mapa_analisis3) +
+  geom_sf(aes(fill = bandas_100milhab), color = "white", linewidth = 0.1) +
+  scale_fill_viridis_c(
+    option = "magma",
+    direction = -1,
+    na.value = "grey90",
+    name = "Bandas por 100.000 habitantes"
+  ) +
+  labs(
+    title = "Distribución de bandas de metal por países",
+    subtitle = "Relación entre bandas de metal y esperanza de vida saludable",
+    caption = "Fuente: Metal Archives, Banco Mundial y Organización Mundial de la Salud"
+  ) +
+  theme_void()
 ```
 
-```{r paises_destacados_salud}
-
-paises_destacados_3 <- analisis3 %>%
-  filter(
-    bandas_100milhab >= median(bandas_100milhab, na.rm = TRUE),
-    hale >= median(hale, na.rm = TRUE)
-  ) %>%
-  arrange(desc(bandas_100milhab), desc(hale))
-
-paises_destacados_3 %>%
-  select(pais, bandas_func, bandas_100milhab, hale, year) %>%
-  knitr::kable(
-    caption = "Países con mayor presencia de metal y esperanza de vida saludable"
-  )
-```
 
 ```{r}
 ggplot(analisis3, aes(x = bandas_100milhab, y = hale)) +
@@ -397,18 +419,9 @@ ggplot(analisis3, aes(x = bandas_100milhab, y = hale)) +
   theme_minimal()
 ```
 
-```{r}
-cor.test(
-  analisis3$bandas_100milhab,
-  analisis3$hale,
-  method = "spearman",
-  exact = FALSE
-)
-```
-
 ------------------------------------------------------------------------
 
-## Tabla de comparación con 3 métodos estadísticos distintos 
+## Tabla de comparación con 3 métodos estadísticos distintos
 
 ```{r}
 relevancia <- function(datos, x, y, pregunta){
@@ -423,8 +436,8 @@ relevancia <- function(datos, x, y, pregunta){
     tibble(
       pregunta = pregunta,
       tipo = tipo,
-      n = sum(complete.cases(datos[[x]], datos[[y]])),
-      numero = unname(prueba$estimate),
+      casos = sum(complete.cases(datos[[x]], datos[[y]])),
+      coeficiente = unname(prueba$estimate),
       p_valor = prueba$p.value
     )
   })
@@ -454,7 +467,7 @@ tabla_estadistica <- bind_rows(
 ```{r}
 tabla_estadistica %>%
   mutate(
-    numero = round(numero, 3),
+    coeficiente = round(coeficiente, 3),
     p_valor = signif(p_valor, 3),
   ) %>%
   knitr::kable(
@@ -462,16 +475,4 @@ tabla_estadistica %>%
   )
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+TOMA YA QUE DA POSITIVO!! Si es una causa, una consecuencia o una coincidencia = Conclusión
