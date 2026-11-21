@@ -300,6 +300,29 @@ ggplot(analisis1, aes(x = hale, y = felicidad)) +
 
 Segundo Objetivo: Metal y felicidad
 
+```{r}
+analisis2 <- bandas_pais %>%
+  left_join(
+    poblacion2024 %>% 
+      select(iso3c, poblacion),
+    by = "iso3c"
+  ) %>%
+  mutate(
+    bandas_100milhab = (bandas_func / poblacion) * 100000
+  ) %>%
+  inner_join(
+    felicidad %>% select(iso3c, felicidad),
+    by = "iso3c"
+  )
+
+paises_destacados_2 <- analisis2 %>%
+  slice_max(
+    order_by = bandas_100milhab,
+    n = 5,
+    with_ties = FALSE
+  ) %>%
+  select(pais, bandas_func, poblacion, bandas_100milhab, felicidad)
+```
 
 
 
@@ -361,6 +384,30 @@ ggplot(analisis2,
 
 
 Tercer Objetivo: Metal y salud
+
+```{r}
+analisis3 <- bandas_pais %>%
+  inner_join(
+    poblacion2024 %>% select(iso3c, poblacion),
+    by = "iso3c"
+  ) %>%
+  mutate(
+    bandas_100milhab = (bandas_func / poblacion) * 100000
+  ) %>%
+  inner_join(
+    hale_final %>% select(iso3c, hale, year),
+    by = "iso3c"
+  )
+
+paises_destacados_3 <- analisis3 %>%
+  slice_max(
+    order_by = bandas_100milhab,
+    n = 5,
+    with_ties = FALSE
+  ) %>%
+  select(pais, bandas_func, poblacion, bandas_100milhab, hale, year)
+```
+
 
 ```{r}
 # Obtener el mapa mundial
