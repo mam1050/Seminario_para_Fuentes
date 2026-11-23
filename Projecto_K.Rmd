@@ -1,5 +1,5 @@
 ---
-title: "Projecto_K"
+title: "MUSICA METAL = SALUD y FELICIDAD?"
 author: "Maria_Alonso"
 date: "2026-10-19"
 output: html_document
@@ -28,9 +28,9 @@ Es importante tener en cuenta que el objetivo es estudiar si existe alguna relac
 Para comenzar el análisis, se instalan y cargan las librerías necesarias. Estas librerías permiten importar, organizar y transformar los datos, realizar los análisis estadísticos y elaborar gráficos y mapas.
 
 ```{r packages}
-install.packages("stringi")
-install.packages("rnaturalearth")
-install.packages("rnaturalearthdata")
+#install.packages("stringi")
+#install.packages("rnaturalearth")
+#install.packages("rnaturalearthdata")
 library(tidyverse)
 library(readxl)
 library(pdftools)
@@ -72,7 +72,7 @@ metal_bandas <- read.csv(
 
 Este dataset es el que mas ha sido tratado para poder usarse bien, ya que ni se necesitan las columnas ni viene con toda la información al completo de todas las bandas. Por lo tanto, se han seleccionado solo las que si se necesitan y algunos valores se han tenido que normalizar para facilitar su tratamiento:
 
-```{r Crear tabla metal}
+```{r Crear_tabla_metal}
 
 #Columna que sirven
 
@@ -107,7 +107,7 @@ metal <- metal_bandas %>%
 
 Finalmente, primero se excluyen las bandas los paises que no existen y los que son internacionales o no se saben, mientras se conservan las bandas cuyo estado figura como «Active» o «On hold», también se agrupan por país. Para facilitar la unión con las demás fuentes, se asigna a cada país su correspondiente código ISO3.
 
-```{r pais = cuantas bandas funcionan}
+```{r bandas_funcionales}
 
 bandas_pais <- metal %>%
   
@@ -132,10 +132,6 @@ bandas_pais <- metal %>%
   filter(!is.na(iso3c)) %>%
   count(pais, iso3c, name = "bandas_func", sort = TRUE)
 
-bandas_pais %>%
-  knitr::kable(
-    caption = "los paises con mas bandas"
-  )
 ```
 
 - World Development Indicators (Banco Mundial):
@@ -158,10 +154,10 @@ gente_PIB <- readxl :: read_excel(
   ruta_gente, skip = 3
 )
 
-view(gente_PIB)
+#view(gente_PIB)
 ```
 
-```{r Preparación de datos}
+```{r Preparacion_datos_gente}
 
 # crear una columna para los códigos iso3c y quitar los NA
 
@@ -173,7 +169,7 @@ poblacion2024 <- gente_PIB %>%
   ) %>%
   filter(!is.na(poblacion))
 
-View(poblacion2024)
+#View(poblacion2024)
 ```
 
 - World Happiness Report:
@@ -190,17 +186,17 @@ fel_datos <- readxl :: read_excel(
   ruta_fel
 )
 
-view(fel_datos)
+#view(fel_datos)
 
 fel_iso <- fel_datos %>%
   mutate(
     iso3c = countrycode(`Country name`, origin = "country.name", destination = "iso3c"))
 
-view(fel_iso)
+#view(fel_iso)
 
 ```
 
-```{r Preparación de datos}
+```{r Preparacion_datos_felicidad}
 
 # crear una columna para los códigos iso3c, escoger la columna de "Lader score" y quitar los NA
 
@@ -233,11 +229,11 @@ hale_datos <- read.csv(
   check.names = FALSE
 )
 
-view(hale_datos)
+#view(hale_datos)
 
 ```
 
-```{r Preparación de datos}
+```{r Preparacion_datos_hale}
 
 #crear una columna para los códigos iso3c, filtrar los datos por género y año, finalmente quitar los NA
 
@@ -254,7 +250,8 @@ hale_paises <- hale_datos %>%
 
 ```
 
-```{r Selecciona para cada país el último año disponible de esperanza de vida saludable y ordena los resultados alfabéticamente.}
+```{r Selecciona_para_cada_país_el_último_año_disponible_de_esperanza_de_vida_saludable_y_ordena_los_resultados_alfabéticamente.}
+
 hale_final <- hale_paises %>%
   group_by(iso3c) %>%
   arrange(desc(year), .by_group = TRUE) %>%
@@ -275,12 +272,7 @@ Finalmente, los conjuntos de datos se han combinado mediante los códigos ISO3 d
 
 - G01: Relación entre felicidad y esperanza de vida saludable
 - G02: Relación entre bandas de metal y felicidad
-
-La música forma parte de la identidad cultural y social de una población. Analizar su relación con la felicidad permite explorar si los países con una mayor presencia de bandas de metal también presentan mayores niveles de felicidad.
-
 - G03: Relación entre bandas de metal y esperanza de vida saludable
-
-La cultura musical puede formar parte del entorno social y cultural de una población, mientras que la esperanza de vida saludable refleja sus condiciones de salud y bienestar. Analizar su asociación permite explorar si los países con una mayor presencia de bandas de metal también presentan una mayor esperanza de vida saludable.
 
 ------------------------------------------------------------------------
 
@@ -294,7 +286,7 @@ En primer lugar, se unen los datos de felicidad y esperanza de vida saludable me
 
 Posteriormente, se seleccionan los diez países con mayor puntuación de felicidad y se identifican los países europeos para realizar un análisis específico de esta región.
 
-```{r Preparación de los datos}
+```{r Preparacion_datos_analisis_1}
 
 analisis1 <- felicidad %>%
   inner_join(
@@ -321,7 +313,7 @@ A continuación, se obtiene un mapa mundial y se asigna a cada país su código 
 
 Una vez combinadas, se representa geográficamente la esperanza de vida saludable, permitiendo visualizar su distribución entre los países incluidos en el estudio.
 
-```{r Mapa mundial analisis 1}
+```{r Mapa_mundial_analisis_1}
 
 # Obtener el mapa mundial
 
@@ -385,7 +377,7 @@ ggsave(
 
 Para facilitar la visualización de los resultados y apreciar mejor las diferencias entre países, se elabora un mapa centrado en Europa, donde se representa la esperanza de vida saludable de los países incluidos en el análisis.
 
-```{r Mapa Europa analisis 1}
+```{r Mapa_Europa_analisis_1}
 
 # Obtener el mapa de Europa
 
@@ -459,7 +451,7 @@ En el mapa se observa que la esperanza de vida saludable es más alta en Norteam
 
 A continuación, se representa gráficamente la relación entre la esperanza de vida saludable y la felicidad mediante un diagrama de dispersión. Se incluyen los países con las puntuaciones de felicidad más elevadas para facilitar su identificación en el gráfico, así como una línea de regresión que permite visualizar la tendencia general de la relación entre ambas variables.
 
-```{r Gráfico de dispesión}
+```{r Gráfico_dispesión_analisis_1}
 
 grafico1 <- ggplot(analisis1, aes(x = hale, y = felicidad)) +
   geom_point(size = 2, alpha = 0.6) +
@@ -497,7 +489,7 @@ La música forma parte de la identidad cultural y social de una población. Anal
 
 Para estudiar la relación entre la presencia de bandas de metal y la felicidad, se combinan los datos del número de bandas por país con los datos de población y felicidad. Para poder comparar países de distinto tamaño, se calcula el número de bandas de metal por cada 100.000 habitantes. De este modo, se utiliza una medida relativa en lugar del número absoluto de bandas.
 
-```{r Preparación de los datos}
+```{r Preparacion_datos_analisis_2}
 
 analisis2 <- bandas_pais %>%
   left_join(
@@ -536,7 +528,7 @@ analisis2_europa <- analisis2 %>%
 
 Para visualizar la distribución de bandas de metal entre los distintos países, se elabora un mapa mundial en el que se representa el número de bandas por cada 100.000 habitantes. Esta representación permite comparar la presencia relativa de bandas de metal entre países, teniendo en cuenta las diferencias de población.
 
-```{r Mapa del mundo analisis 2}
+```{r Mapa_del_mundo_analisis_2}
 
 # Obtener el mapa mundial
 
@@ -601,7 +593,7 @@ ggsave(
 
 Para facilitar la visualización de los resultados y apreciar mejor las diferencias entre países europeos, se elabora un mapa centrado en Europa, donde se representa el número de bandas de metal por cada 100.000 habitantes.
 
-```{r Mapa Europa analisis 2}
+```{r Mapa_Europa_analisis_2}
 
 # Obtener el mapa de Europa
 
@@ -677,7 +669,7 @@ En el mapa se observa que la presencia relativa de bandas de metal es muy desigu
 
 A continuación, se representa gráficamente la relación entre el número de bandas de metal por cada 100.000 habitantes y la felicidad mediante un diagrama de dispersión. Se identifican los cinco países con mayor presencia relativa de bandas de metal y se incorpora una línea de regresión para visualizar la tendencia general de la relación entre ambas variables.
 
-```{r Gráfico de dispersión}
+```{r Gráfico_dispersión_analisis_2}
 
 grafico2 <- ggplot(analisis2,
        aes(x = bandas_100milhab, y = felicidad)) +
@@ -717,7 +709,7 @@ La cultura musical puede formar parte del entorno social y cultural de una pobla
 
 Para estudiar esta relación, se combinan los datos del número de bandas de metal por país con los datos de población y esperanza de vida saludable. Al igual que en el objetivo anterior, se calcula el número de bandas por cada 100.000 habitantes para poder comparar países de distinto tamaño.
 
-```{r Preparación de los datos}
+```{r Preparación_datos_analisis_3}
 
 analisis3 <- bandas_pais %>%
   inner_join(
@@ -755,7 +747,7 @@ analisis3_europa <- analisis3 %>%
 
 Para visualizar la distribución de bandas de metal entre los distintos países, se elabora un mapa mundial en el que se representa el número de bandas por cada 100.000 habitantes. Esta representación permite comparar la presencia relativa de bandas de metal entre países y la vida saludable que puedes tener en cada pais.
 
-```{r}
+```{r Mapa_del_mundo_analisis_3}
 # Obtener el mapa mundial
 mapa_mun <- ne_countries(scale = "medium", returnclass = "sf")
 
@@ -809,7 +801,7 @@ ggsave(
 )
 ```
 
-```{r}
+```{r Mapa_Europa_analisis_3}
 
 # Obtener el mapa de Europa
 mapa_europa <- ne_countries(
@@ -881,7 +873,7 @@ En el mapa se observa que la presencia relativa de bandas de metal se concentra 
 
 A continuación, se representa gráficamente la relación entre el número de bandas de metal por cada 100.000 habitantes y la esperanza de vida saludable mediante un diagrama de dispersión. Se identifican los cinco países con mayor presencia relativa de bandas de metal y se incorpora una línea de regresión para visualizar la tendencia general de la relación entre ambas variables.
 
-```{r Gráfico de dispersión}
+```{r Gráfico_dispersión_analisis_3}
 
 grafico3 <- ggplot(analisis3, aes(x = bandas_100milhab, y = hale)) +
   geom_point(size = 2, alpha = 0.6) +
@@ -922,7 +914,7 @@ Para comparar los resultados obtenidos en los tres objetivos, se elabora una tab
 
 Esta comparación permite observar la intensidad y la dirección de la asociación entre las variables de cada objetivo, así como el número de países incluidos y la significación estadística de los resultados.
 
-```{r Tabla comparativa de estadísticas}
+```{r Tabla_comparativa_de_estadísticas}
 
 # Crear una función para calcular los coeficientes de correlación y los valores p de cada relación
 
@@ -983,7 +975,7 @@ tabla_estadistica <- bind_rows(
 )
 ```
 
-```{r Tabla final}
+```{r Tabla_final}
 tabla_estadistica %>%
   mutate(
     coeficiente = round(coeficiente, 3),
