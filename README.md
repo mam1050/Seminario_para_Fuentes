@@ -1,4 +1,4 @@
-# Metal, felicidad y salud: un análisis mundial
+# MUSICA METAL = SALUD y FELICIDAD?
 
 ## Descripción del proyecto
 
